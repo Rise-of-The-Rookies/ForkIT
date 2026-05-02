@@ -1,0 +1,50 @@
+# ForkIt — AI Rules
+
+## Project
+ForkIt is a social-first food discovery app for Malaysia. React + Vite + TypeScript + Tailwind v4 + Supabase + Framer Motion. Web-first MVP, React Native later.
+
+## Stack
+- Frontend: React, Vite, TypeScript, Tailwind CSS v4, Framer Motion, React Router v6
+- State: Zustand (global), React hooks (local)
+- Backend: Supabase (Auth, PostgreSQL, Realtime, Storage, Edge Functions)
+- AI: Gemini 1.5 Flash via lib/ai.ts abstraction layer
+- Maps: Google Maps JS API via lib/maps.ts
+- Places: Google Places API via lib/places.ts
+- Push: Web Push API + VAPID keys via lib/push.ts
+- Hosting: Vercel
+
+## Folder rules
+- features/x/ owns its own components, hooks, local state
+- features/ never imports from other features/
+- Cross-feature communication via Zustand store or URL params only
+- Shared UI goes in components/
+- All external API calls go through lib/ wrappers — never call APIs directly from components
+- Always import supabase from @/lib/supabase — never instantiate a new client
+
+## Code style
+- TypeScript strict mode — no any unless absolutely necessary
+- Functional components only — no class components
+- Tailwind for all styling — no inline style objects except Framer Motion animations
+- All types defined in types/index.ts or co-located in the feature
+- Path alias: @/ maps to src/
+
+## Brand
+- Primary accent: #FF4D00 (orange-red)
+- Secondary accent: #FF0080 (pink)
+- Success: #00A86B (green)
+- Dark bg: #0F0E0C, Surface: #161513
+- Light bg: #FAF7F2
+- Fonts: Plus Jakarta Sans (headings, 700/800), Inter (body, 400-700)
+
+## DB schema (Phase 1 tables)
+- users: id, display_name, avatar_url, bio, personality_type, budget_pref, distance_pref
+- user_preferences: user_id, cuisine_tags[], dietary_tags[], notification_prefs jsonb
+- restaurants: id, google_place_id, name, cuisine, lat, lng, price_range, rating, photos[]
+- saved_places: user_id, restaurant_id, geofence_active, last_notified_at, visit_count
+- reviews: id, user_id, restaurant_id, rating, body
+
+## Key patterns
+- Supabase client: import { supabase } from '@/lib/supabase'
+- AI calls: import { askAI } from '@/lib/ai' — never call Gemini directly
+- Auth state: import { useUserStore } from '@/store/userStore'
+- When in doubt, check the feature folder first before creating a new shared component

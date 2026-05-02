@@ -1,0 +1,71 @@
+@import "tailwindcss";
+
+/* ── Design tokens ───────────────────────────────────── */
+
+:root {
+  --color-primary: #FF4D00;
+  --color-primary-light: #FF7A3D;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-heading: 'Plus Jakarta Sans', 'Inter', sans-serif;
+}
+
+/* ── Dark theme (default) ────────────────────────────── */
+[data-theme="dark"] {
+  --color-bg: #0A0A0C;
+  --color-bg-card: #141418;
+  --color-bg-elevated: #1C1C22;
+  --color-text: #F5F5F7;
+  --color-text-muted: #8E8E93;
+  --color-border: rgba(255, 255, 255, 0.08);
+}
+
+/* ── Light theme ─────────────────────────────────────── */
+[data-theme="light"] {
+  --color-bg: #FAFAFA;
+  --color-bg-card: #FFFFFF;
+  --color-bg-elevated: #F0F0F2;
+  --color-text: #1A1A1E;
+  --color-text-muted: #6E6E73;
+  --color-border: rgba(0, 0, 0, 0.08);
+}
+
+/* ── Global resets & base ────────────────────────────── */
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  min-height: 100dvh;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: 700;
+}
+
+/* ── Scrollbar (dark-friendly) ───────────────────────── */
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-text-muted);
+  border-radius: 3px;
+}
