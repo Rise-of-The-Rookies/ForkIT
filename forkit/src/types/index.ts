@@ -72,6 +72,17 @@ export type SavedPlace = {
   visit_count: number
 }
 
+// ─── Reviews ─────────────────────────────────
+
+export type Review = {
+  id: string
+  user_id: string
+  restaurant_id: string
+  rating: number
+  body: string | null
+  created_at: string
+}
+
 // ─── Supabase Database type stub ─────────────
 // Replace with auto-generated types from
 //   npx supabase gen types typescript --project-id <id>
@@ -109,6 +120,11 @@ export type Database = {
         Row: SavedPlace
         Insert: Partial<SavedPlace> & Pick<SavedPlace, 'user_id' | 'restaurant_id'>
         Update: Partial<SavedPlace>
+      }
+      reviews: {
+        Row: Review
+        Insert: Partial<Review> & Pick<Review, 'user_id' | 'restaurant_id' | 'rating'>
+        Update: Partial<Review>
       }
     }
     Views: Record<string, never>

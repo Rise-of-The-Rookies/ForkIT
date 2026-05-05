@@ -3,7 +3,7 @@
 -- ============================================
 
 CREATE TABLE user_preferences (
-  user_id            uuid   PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  user_id            uuid   PRIMARY KEY REFERENCES user_profiles(id) ON DELETE CASCADE,
   cuisine_tags       text[] DEFAULT '{}',
   dietary_tags       text[] DEFAULT '{}',
   notification_prefs jsonb  DEFAULT '{}'

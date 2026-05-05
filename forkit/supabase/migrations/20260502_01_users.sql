@@ -1,8 +1,8 @@
 -- ============================================
--- Migration 01: users
+-- Migration 01: user_profiles
 -- ============================================
 
-CREATE TABLE users (
+CREATE TABLE user_profiles (
   id            uuid        PRIMARY KEY REFERENCES auth.users ON DELETE CASCADE,
   display_name  text        NOT NULL,
   avatar_url    text,
@@ -14,23 +14,23 @@ CREATE TABLE users (
 );
 
 -- Enable Row Level Security
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_profiles ENABLE ROW LEVEL SECURITY;
 
 -- Users can read their own row
 CREATE POLICY "users_select_own"
-  ON users FOR SELECT
+  ON user_profiles FOR SELECT
   TO authenticated
   USING (auth.uid() = id);
 
 -- Users can update their own row
 CREATE POLICY "users_update_own"
-  ON users FOR UPDATE
+  ON user_profiles FOR UPDATE
   TO authenticated
   USING (auth.uid() = id)
   WITH CHECK (auth.uid() = id);
 
 -- Users can insert their own row (for onboarding)
 CREATE POLICY "users_insert_own"
-  ON users FOR INSERT
+  ON user_profiles FOR INSERT
   TO authenticated
   WITH CHECK (auth.uid() = id);

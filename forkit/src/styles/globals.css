@@ -1,32 +1,48 @@
 @import "tailwindcss";
+@import "../features/discovery/discovery.css";
+@import "../features/profile/profile.css";
 
 /* ── Design tokens ───────────────────────────────────── */
 
 :root {
   --color-primary: #FF4D00;
   --color-primary-light: #FF7A3D;
+  --color-secondary: #FF0080;
+  --color-success: #00A86B;
   --font-body: 'Inter', system-ui, sans-serif;
   --font-heading: 'Plus Jakarta Sans', 'Inter', sans-serif;
 }
 
 /* ── Dark theme (default) ────────────────────────────── */
 [data-theme="dark"] {
-  --color-bg: #0A0A0C;
-  --color-bg-card: #141418;
-  --color-bg-elevated: #1C1C22;
-  --color-text: #F5F5F7;
-  --color-text-muted: #8E8E93;
+  --color-bg: #0F0E0C;
+  --color-surface: #161513;
+  --color-surface2: #1E1D1A;
+  --color-text: #FAF7F2;
+  --color-text2: #AAAAAA;
+  --color-accent: #FF4D00;
   --color-border: rgba(255, 255, 255, 0.08);
+
+  /* Legacy aliases — keep for existing components */
+  --color-bg-card: #161513;
+  --color-bg-elevated: #1E1D1A;
+  --color-text-muted: #8E8E93;
 }
 
 /* ── Light theme ─────────────────────────────────────── */
 [data-theme="light"] {
-  --color-bg: #FAFAFA;
-  --color-bg-card: #FFFFFF;
-  --color-bg-elevated: #F0F0F2;
-  --color-text: #1A1A1E;
-  --color-text-muted: #6E6E73;
+  --color-bg: #FAF7F2;
+  --color-surface: #FFFFFF;
+  --color-surface2: #F4F1EC;
+  --color-text: #1A1916;
+  --color-text2: #555555;
+  --color-accent: #FF4D00;
   --color-border: rgba(0, 0, 0, 0.08);
+
+  /* Legacy aliases */
+  --color-bg-card: #FFFFFF;
+  --color-bg-elevated: #F4F1EC;
+  --color-text-muted: #6E6E73;
 }
 
 /* ── Global resets & base ────────────────────────────── */
@@ -50,6 +66,7 @@ body {
   background-color: var(--color-bg);
   color: var(--color-text);
   min-height: 100dvh;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 h1, h2, h3, h4, h5, h6 {

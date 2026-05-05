@@ -1,9 +1,12 @@
 import { createBrowserRouter } from 'react-router-dom'
 
 import MainLayout from './layouts/MainLayout'
+import ProtectedRoute from './ProtectedRoute'
+import OnboardingGuard from './OnboardingGuard'
 
-// -- Pages (lazy-friendly stubs for now) --
+// -- Pages --
 import WelcomePage from '@/pages/WelcomePage'
+import AuthCallbackPage from '@/pages/AuthCallbackPage'
 import ProfileSetupPage from '@/pages/onboarding/ProfileSetupPage'
 import FoodDnaPage from '@/pages/onboarding/FoodDnaPage'
 import DiningStylePage from '@/pages/onboarding/DiningStylePage'
@@ -19,44 +22,49 @@ import SettingsPage from '@/pages/SettingsPage'
 /**
  * Application router.
  *
- * Two top-level groups:
- *   1. Standalone routes (no bottom nav) — Welcome & Onboarding
- *   2. MainLayout routes (with bottom nav) — all main app screens
+ * Three-tier route groups:
+ *   1. Standalone — Welcome (public, no nav)
+ *   2. OnboardingGuard — logged-in but NOT yet completed onboarding
+ *   3. ProtectedRoute → MainLayout — logged-in AND onboarding complete
  */
 export const router = createBrowserRouter([
-  /* ── Standalone (no nav) ──────────────────────────── */
+  /* ── Public ─────────────────────────────────── */
   {
     path: '/',
     element: <WelcomePage />,
   },
   {
-    path: '/onboarding/profile',
-    element: <ProfileSetupPage />,
-  },
-  {
-    path: '/onboarding/food-dna',
-    element: <FoodDnaPage />,
-  },
-  {
-    path: '/onboarding/dining-style',
-    element: <DiningStylePage />,
-  },
-  {
-    path: '/onboarding/personality',
-    element: <PersonalityRevealPage />,
+    path: '/auth/callback',
+    element: <AuthCallbackPage />,
   },
 
-  /* ── Main app (with bottom nav) ───────────────────── */
+  /* ── Onboarding (requires auth, blocks if already onboarded) ── */
   {
-    element: <MainLayout />,
+    element: <OnboardingGuard />,
     children: [
-      { path: '/discover', element: <DiscoverPage /> },
-      { path: '/restaurant/:id', element: <RestaurantDetailPage /> },
-      { path: '/feed', element: <FeedPage /> },
-      { path: '/forky', element: <ForkyPage /> },
-      { path: '/trending', element: <TrendingPage /> },
-      { path: '/profile', element: <ProfilePage /> },
-      { path: '/settings', element: <SettingsPage /> },
+      { path: '/onboarding/profile', element: <ProfileSetupPage /> },
+      { path: '/onboarding/food-dna', element: <FoodDnaPage /> },
+      { path: '/onboarding/dining-style', element: <DiningStylePage /> },
+      { path: '/onboarding/personality', element: <PersonalityRevealPage /> },
+    ],
+  },
+
+  /* ── Protected app routes (auth + onboarding required) ── */
+  {
+    element: <ProtectedRoute />,
+    children: [
+      {
+        element: <MainLayout />,
+        children: [
+          { path: '/discover', element: <DiscoverPage /> },
+          { path: '/restaurant/:id', element: <RestaurantDetailPage /> },
+          { path: '/feed', element: <FeedPage /> },
+          { path: '/forky', element: <ForkyPage /> },
+          { path: '/trending', element: <TrendingPage /> },
+          { path: '/profile', element: <ProfilePage /> },
+          { path: '/settings', element: <SettingsPage /> },
+        ],
+      },
     ],
   },
 ])

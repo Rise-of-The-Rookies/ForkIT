@@ -5,19 +5,19 @@ import { useUserStore } from '@/store/userStore'
 import { supabase } from '@/lib/supabase'
 
 /* ──────────────────────────────────────────────
-   ProtectedRoute
-   - No session           → redirect to /
-   - Session, checking    → full-screen loader
-   - Session, no onboard  → redirect to /onboarding/profile
-   - Session + onboarded  → render children
+   OnboardingGuard
+   Protects /onboarding/* routes:
+   - No session             → redirect to /
+   - Session + already onboarded → redirect to /discover
+   - Session + onboarding incomplete → render children
    ────────────────────────────────────────────── */
 
-export default function ProtectedRoute() {
+export default function OnboardingGuard() {
   const { session, loading: authLoading } = useAuthStore()
   const { user, setUser } = useUserStore()
   const [profileLoading, setProfileLoading] = useState(true)
 
-  /* ── Fetch user profile on mount (or when session arrives) ── */
+  /* ── Fetch user profile on mount ───────────── */
   useEffect(() => {
     const fetchProfile = async () => {
       if (!session?.user?.id) {
@@ -25,7 +25,6 @@ export default function ProtectedRoute() {
         return
       }
 
-      // If we already have the user in the store, no need to re-fetch
       if (user && user.id === session.user.id) {
         setProfileLoading(false)
         return
@@ -41,9 +40,8 @@ export default function ProtectedRoute() {
         if (!error && data) {
           setUser(data)
         }
-        // If error/no data → user hasn't created a profile yet (new user)
       } catch {
-        // Silently fail — treated as "no profile"
+        // No profile yet — expected for new users
       } finally {
         setProfileLoading(false)
       }
@@ -52,7 +50,7 @@ export default function ProtectedRoute() {
     fetchProfile()
   }, [session?.user?.id, user, setUser])
 
-  /* ── Loading states ───────────────────────── */
+  /* ── Loading ──────────────────────────────── */
 
   if (authLoading || profileLoading) {
     return (
@@ -70,16 +68,16 @@ export default function ProtectedRoute() {
     )
   }
 
-  /* ── Not authenticated ────────────────────── */
+  /* ── Not logged in → welcome page ─────────── */
   if (!session) {
     return <Navigate to="/" replace />
   }
 
-  /* ── Authenticated but onboarding incomplete ─ */
-  if (!user?.personality_type) {
-    return <Navigate to="/onboarding/profile" replace />
+  /* ── Already completed onboarding → app ───── */
+  if (user?.personality_type) {
+    return <Navigate to="/discover" replace />
   }
 
-  /* ── All good — render nested routes ──────── */
+  /* ── In progress — render onboarding screens ─ */
   return <Outlet />
 }
