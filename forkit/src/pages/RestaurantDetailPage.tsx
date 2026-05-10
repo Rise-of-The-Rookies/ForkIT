@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase'
 import { getPlaceDetails, getPhotoUrl } from '@/lib/places'
 import { useAuthStore } from '@/features/auth/authStore'
 import ReviewSheet from '@/features/discovery/RestaurantDetail'
-import type { Restaurant, Review } from '@/types'
+import type { Restaurant, Review, Dish } from '@/types'
 
 /* ──────────────────────────────────────────────
    RestaurantDetailPage
@@ -50,6 +50,7 @@ export default function RestaurantDetailPage() {
   const [isSaved, setIsSaved] = useState(false)
   const [loading, setLoading] = useState(true)
   const [reviewSheetOpen, setReviewSheetOpen] = useState(false)
+  const [dishes, setDishes] = useState<Dish[]>([])
 
   // ── Fetch restaurant + enrichment ──
   useEffect(() => {
@@ -60,12 +61,12 @@ export default function RestaurantDetailPage() {
     async function load() {
       setLoading(true)
 
-      // 1. Fetch from Supabase
+      // 1. Fetch from Supabase by google_place_id (route param)
       const { data, error } = await supabase
         .from('restaurants')
         .select('*')
-        .eq('id', id)
-        .single()
+        .eq('google_place_id', id)
+        .maybeSingle()
 
       if (error || !data) {
         console.error('[RestaurantDetail] fetch error:', error?.message)
@@ -137,53 +138,69 @@ export default function RestaurantDetailPage() {
     }
   }, [id])
 
-  // ── Fetch reviews ──
+  // ── Fetch reviews (keyed on the real Supabase restaurant.id) ──
+  const restaurantDbId = restaurant?.id ?? null
+
   const fetchReviews = useCallback(async () => {
-    if (!id) return
+    if (!restaurantDbId) return
     const { data, error } = await supabase
       .from('reviews')
       .select('*, user_profiles(display_name, avatar_url)')
-      .eq('restaurant_id', id)
+      .eq('restaurant_id', restaurantDbId)
       .order('created_at', { ascending: false })
 
     if (!error && data) {
       setReviews(data as ReviewWithUser[])
     }
-  }, [id])
+  }, [restaurantDbId])
 
   useEffect(() => {
     fetchReviews()
   }, [fetchReviews])
 
-  // ── Check saved state ──
+  // ── Check saved state (use real Supabase id) ──
   useEffect(() => {
-    if (!userId || !id) return
+    if (!userId || !restaurantDbId) return
     supabase
       .from('saved_places')
       .select('restaurant_id')
       .eq('user_id', userId)
-      .eq('restaurant_id', id)
-      .single()
+      .eq('restaurant_id', restaurantDbId)
+      .maybeSingle()
       .then(({ data }) => {
         setIsSaved(!!data)
       })
-  }, [userId, id])
+  }, [userId, restaurantDbId])
+
+  // ── Fetch dishes (use real Supabase id) ──
+  useEffect(() => {
+    if (!restaurantDbId) return
+    supabase
+      .from('dishes')
+      .select('*')
+      .eq('restaurant_id', restaurantDbId)
+      .order('created_at', { ascending: true })
+      .limit(6)
+      .then(({ data }) => {
+        if (data) setDishes(data as Dish[])
+      })
+  }, [restaurantDbId])
 
   // ── Toggle save ──
   const toggleSave = async () => {
-    if (!userId || !id) return
+    if (!userId || !restaurantDbId) return
 
     if (isSaved) {
       await supabase
         .from('saved_places')
         .delete()
         .eq('user_id', userId)
-        .eq('restaurant_id', id)
+        .eq('restaurant_id', restaurantDbId)
       setIsSaved(false)
     } else {
       await supabase.from('saved_places').upsert({
         user_id: userId,
-        restaurant_id: id,
+        restaurant_id: restaurantDbId,
         geofence_active: false,
         visit_count: 0,
       })
@@ -403,6 +420,32 @@ export default function RestaurantDetailPage() {
           )}
         </div>
       </section>
+
+      {/* ═══════ TOP DISHES ═══════ */}
+      {dishes.length > 0 && (
+        <section className="detail-page__dishes">
+          <h2 className="detail-page__section-title">
+            🍽️ Top Dishes
+          </h2>
+          <div className="detail-page__dishes-scroll">
+            {dishes.map((dish) => (
+              <div key={dish.id} className="detail-page__dish-card">
+                {dish.photo_url ? (
+                  <img
+                    src={dish.photo_url}
+                    alt={dish.name}
+                    className="detail-page__dish-img"
+                    loading="lazy"
+                  />
+                ) : (
+                  <div className="detail-page__dish-img-placeholder" />
+                )}
+                <span className="detail-page__dish-name">{dish.name}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ═══════ FORKIT REVIEWS ═══════ */}
       <section className="detail-page__reviews">

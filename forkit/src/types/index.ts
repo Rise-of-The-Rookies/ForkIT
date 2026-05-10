@@ -35,6 +35,25 @@ export type Restaurant = {
   price_range: 1 | 2 | 3 | 4
   rating: number
   photos: string[]
+
+  // ── Cuisine classification (added 2026-05-07) ──
+  cuisine_primary: string | null
+  cuisine_secondary: string | null
+  dish_types: string[]
+  halal_likely: boolean
+  classification_source: 'unclassified' | 'keyword' | 'gemini' | 'user_signal'
+  classification_confidence: number
+}
+
+// ─── Dish ────────────────────────────────────
+
+export type Dish = {
+  id: string
+  restaurant_id: string
+  name: string
+  photo_url: string | null
+  description: string | null
+  created_at: string
 }
 
 // ─── Social / Posts ──────────────────────────
@@ -126,9 +145,23 @@ export type Database = {
         Insert: Partial<Review> & Pick<Review, 'user_id' | 'restaurant_id' | 'rating'>
         Update: Partial<Review>
       }
+      dishes: {
+        Row: Dish
+        Insert: Partial<Dish> & Pick<Dish, 'restaurant_id' | 'name'>
+        Update: Partial<Dish>
+      }
     }
-    Views: Record<string, never>
-    Functions: Record<string, never>
-    Enums: Record<string, never>
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
 }

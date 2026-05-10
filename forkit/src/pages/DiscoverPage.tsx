@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useUserStore } from '@/store/userStore'
@@ -14,6 +14,7 @@ import MapView from '@/features/discovery/MapView'
    ────────────────────────────────────────────── */
 
 type ViewMode = 'list' | 'map'
+const PAGE_SIZE = 6
 
 export default function DiscoverPage() {
   const navigate = useNavigate()
@@ -33,6 +34,10 @@ export default function DiscoverPage() {
   )
 
   const [filters, setFilters] = useState<FilterState>(defaultFilters)
+
+  // ── Infinite scroll state ──
+  const [displayCount, setDisplayCount] = useState(PAGE_SIZE)
+  const sentinelRef = useRef<HTMLDivElement>(null)
   const [viewMode, setViewMode] = useState<ViewMode>('list')
 
   // ── Auto-apply distance preference when it loads asynchronously ──
@@ -48,6 +53,36 @@ export default function DiscoverPage() {
   // ── Data hooks ──
   const { restaurants, loading, error, refetch } = useNearbySearch(filters)
   const { sorted, savedPlaceIds, toggleSave } = useRestaurants(restaurants)
+
+  // ── Reset display count when data changes ──
+  useEffect(() => {
+    setDisplayCount(PAGE_SIZE)
+  }, [sorted.length])
+
+  // ── Infinite scroll observer ──
+  const loadMore = useCallback(() => {
+    setDisplayCount((prev) => Math.min(prev + PAGE_SIZE, sorted.length))
+  }, [sorted.length])
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current
+    if (!sentinel) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadMore()
+        }
+      },
+      { rootMargin: '200px' },
+    )
+
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [loadMore])
+
+  const visibleRestaurants = sorted.slice(0, displayCount)
+  const hasMore = displayCount < sorted.length
 
   return (
     <div className="discover-page">
@@ -92,6 +127,38 @@ export default function DiscoverPage() {
       <div className="discover-page__filters">
         <FilterBar filters={filters} onChange={setFilters} />
       </div>
+
+      {/* ═══════ Ask Forky banner ═══════ */}
+      <motion.div
+        className="discover-page__forky-banner"
+        onClick={() => navigate('/forky')}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.4, delay: 0.3 }}
+        style={{
+          background: 'linear-gradient(135deg, rgba(255,77,0,0.08), rgba(255,77,0,0.03))',
+          border: '1px solid rgba(255,77,0,0.2)',
+          borderRadius: '12px',
+          padding: '12px 16px',
+          marginBottom: '12px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          cursor: 'pointer',
+          marginLeft: '16px',
+          marginRight: '16px',
+        }}
+        whileHover={{ scale: 1.01 }}
+        whileTap={{ scale: 0.98 }}
+      >
+        <span style={{ fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '18px' }}>🤖</span>
+          <span style={{ color: 'var(--text-secondary, #999)' }}>Not sure what to eat?</span>
+        </span>
+        <span style={{ color: '#FF4D00', fontWeight: 700, fontSize: '13px' }}>
+          Ask Forky →
+        </span>
+      </motion.div>
 
       {/* ═══════ Content area ═══════ */}
       <div className="discover-page__content">
@@ -142,9 +209,9 @@ export default function DiscoverPage() {
 
               {/* Restaurant cards */}
               {!loading &&
-                sorted.map((r, i) => (
+                visibleRestaurants.map((r, i) => (
                   <RestaurantCard
-                    key={r.id}
+                    key={r.google_place_id}
                     restaurant={r}
                     index={i}
                     isSaved={savedPlaceIds.has(r.id)}
@@ -152,6 +219,22 @@ export default function DiscoverPage() {
                     trending={r.rating >= 4.5}
                   />
                 ))}
+
+              {/* Infinite scroll sentinel */}
+              {hasMore && !loading && sorted.length > 0 && (
+                <div ref={sentinelRef} className="discover-page__load-more">
+                  <div className="discover-page__load-more-spinner" />
+                  <span>Loading more places…</span>
+                </div>
+              )}
+
+              {/* End of list */}
+              {!hasMore && sorted.length > 0 && !loading && (
+                <div className="discover-page__end-of-list">
+                  <span className="discover-page__end-icon">🍴</span>
+                  <p>You've explored all {sorted.length} places nearby</p>
+                </div>
+              )}
             </motion.div>
           ) : (
             <motion.div

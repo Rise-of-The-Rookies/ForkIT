@@ -17,6 +17,7 @@ interface ReviewWithRestaurant extends Review {
   restaurants?: {
     name: string
     cuisine: string
+    google_place_id: string
   }
 }
 
@@ -46,7 +47,7 @@ export default function ProfilePage() {
     // Reviews
     supabase
       .from('reviews')
-      .select('*, restaurants(name, cuisine)')
+      .select('*, restaurants(name, cuisine, google_place_id)')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
       .then(({ data, count }) => {
@@ -121,7 +122,7 @@ export default function ProfilePage() {
                 <div
                   key={review.id}
                   className="profile-page__review-card"
-                  onClick={() => navigate(`/restaurant/${review.restaurant_id}`)}
+                  onClick={() => navigate(`/restaurant/${review.restaurants?.google_place_id ?? review.restaurant_id}`)}
                 >
                   <div className="profile-page__review-top">
                     <span className="profile-page__review-restaurant">

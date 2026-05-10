@@ -36,7 +36,7 @@ export default function RestaurantCard({
 
   const handleClick = () => {
     if (onClick) return onClick()
-    navigate(`/restaurant/${restaurant.id}`)
+    navigate(`/restaurant/${restaurant.google_place_id}`)
   }
 
   const handleSave = (e: React.MouseEvent) => {
@@ -44,8 +44,8 @@ export default function RestaurantCard({
     onSave()
   }
 
-  // Price label
-  const priceLabel = '₹'.repeat(restaurant.price_range) // visual only
+  // Price label maps from 1-4 to the ranges
+  const priceLabel = ['<20', '20-50', '50-100', '>100'][restaurant.price_range - 1] || '-'
 
   return (
     <motion.article
@@ -108,7 +108,7 @@ export default function RestaurantCard({
           <div className="restaurant-card__tags">
             <span className="restaurant-card__pill">{restaurant.cuisine}</span>
             <span className="restaurant-card__pill restaurant-card__pill--price">
-              {'RM'.padEnd(2 + restaurant.price_range, 'M').slice(0, 2 + restaurant.price_range)}
+              {priceLabel}
             </span>
           </div>
         </div>

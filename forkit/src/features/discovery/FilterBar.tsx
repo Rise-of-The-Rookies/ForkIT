@@ -27,15 +27,15 @@ const CUISINE_PILLS = [
 
 const QUICK_PILLS = [
   { label: 'Open Now', key: 'openNow' },
-  { label: 'Under RM20', key: 'underRM20' },
-  { label: 'Under RM60', key: 'underRM60' },
+  { label: '< 20', key: 'under20' },
+  { label: '< 50', key: 'under50' },
 ] as const
 
 const PRICE_LEVELS = [
-  { label: 'RM', value: 1 },
-  { label: 'RM·RM', value: 2 },
-  { label: 'RM×3', value: 3 },
-  { label: 'RM×4', value: 4 },
+  { label: '<20', value: 1 },
+  { label: '20-50', value: 2 },
+  { label: '50-100', value: 3 },
+  { label: '>100', value: 4 },
 ] as const
 
 const DIETARY_OPTIONS = ['Halal', 'Vegetarian', 'Vegan'] as const
@@ -77,7 +77,7 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
   }
 
   const setUnderPrice = (max: number) => {
-    // Under RM20 → price levels 1; Under RM60 → levels 1,2
+    // Under 20 → price levels 1; Under 50 → levels 1,2
     const levels = max === 20 ? [1] : [1, 2]
     const isAlready =
       filters.priceRange &&
@@ -120,9 +120,9 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
 
   const isQuickActive = (key: string) => {
     if (key === 'openNow') return filters.openNow
-    if (key === 'underRM20')
+    if (key === 'under20')
       return filters.priceRange?.length === 1 && filters.priceRange[0] === 1
-    if (key === 'underRM60')
+    if (key === 'under50')
       return (
         filters.priceRange?.length === 2 &&
         filters.priceRange.includes(1) &&
@@ -164,8 +164,8 @@ export default function FilterBar({ filters, onChange }: FilterBarProps) {
               className={`filter-bar__pill ${active ? 'filter-bar__pill--active' : ''}`}
               onClick={() => {
                 if (pill.key === 'openNow') toggleOpenNow()
-                else if (pill.key === 'underRM20') setUnderPrice(20)
-                else if (pill.key === 'underRM60') setUnderPrice(60)
+                else if (pill.key === 'under20') setUnderPrice(20)
+                else if (pill.key === 'under50') setUnderPrice(50)
               }}
             >
               {pill.label}

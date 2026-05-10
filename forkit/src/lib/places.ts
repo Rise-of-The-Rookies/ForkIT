@@ -110,6 +110,13 @@ function mapToRestaurant(place: GooglePlace): Restaurant {
     price_range: PRICE_LEVEL_REVERSE[place.priceLevel ?? ''] ?? 2,
     rating: place.rating ?? 0,
     photos: (place.photos ?? []).map((p) => getPhotoUrl(p.name)),
+    // Cuisine classification defaults
+    cuisine_primary: null,
+    cuisine_secondary: null,
+    dish_types: [],
+    halal_likely: false,
+    classification_source: 'unclassified',
+    classification_confidence: 0,
   }
 }
 
@@ -148,8 +155,9 @@ export interface NearbySearchParams {
   lng: number
   radiusMeters?: number
   cuisineKeyword?: string
-  priceLevel?: 1 | 2 | 3 | 4
+  priceLevels?: number[]
   openNow?: boolean
+  maxResults?: number
 }
 
 /**
@@ -164,38 +172,53 @@ export async function searchNearbyRestaurants(
     lng,
     radiusMeters = 5000,
     cuisineKeyword,
-    priceLevel,
+    priceLevels,
     openNow,
   } = params
 
-  // Build request body per the Places (New) API spec
-  const body: Record<string, unknown> = {
-    includedTypes: ['restaurant'],
-    locationRestriction: {
-      circle: {
-        center: { latitude: lat, longitude: lng },
-        radius: radiusMeters,
-      },
-    },
-    maxResultCount: 20,
-  }
+  // When a cuisine keyword is provided, we must use the Text Search endpoint
+  // because Nearby Search does NOT support textQuery.
+  const useTextSearch = Boolean(cuisineKeyword)
 
-  // Optional: keyword text query (e.g. "Japanese", "Mamak")
-  if (cuisineKeyword) {
-    body.textQuery = cuisineKeyword
+  let body: Record<string, unknown>
+  let endpoint: string
+
+  if (useTextSearch) {
+    // ── Text Search path ──
+    endpoint = `${BASE_URL}:searchText`
+    body = {
+      textQuery: `${cuisineKeyword} restaurant`,
+      includedType: 'restaurant',
+      locationBias: {
+        circle: {
+          center: { latitude: lat, longitude: lng },
+          radius: radiusMeters,
+        },
+      },
+      maxResultCount: params.maxResults ?? 20,
+    }
+  } else {
+    // ── Nearby Search path (no keyword) ──
+    endpoint = `${BASE_URL}:searchNearby`
+    body = {
+      includedTypes: ['restaurant'],
+      locationRestriction: {
+        circle: {
+          center: { latitude: lat, longitude: lng },
+          radius: radiusMeters,
+        },
+      },
+      maxResultCount: params.maxResults ?? 20,
+    }
   }
 
   // Optional: price-level filter (array of price-level strings)
-  if (priceLevel) {
-    body.priceLevels = [PRICE_LEVEL_MAP[priceLevel]]
+  if (priceLevels && priceLevels.length > 0) {
+    body.priceLevels = priceLevels.map((p) => PRICE_LEVEL_MAP[p]).filter(Boolean)
   }
 
-  // Optional: restrict to currently-open places
-  // The Nearby Search (New) doesn't have a direct openNow body param —
-  // we'll filter client-side after fetch if needed.
-
   try {
-    const res = await fetch(`${BASE_URL}:searchNearby`, {
+    const res = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -208,7 +231,7 @@ export async function searchNearbyRestaurants(
     if (!res.ok) {
       const errorBody = await res.text()
       console.error(
-        `[places] searchNearby failed (${res.status}):`,
+        `[places] ${useTextSearch ? 'searchText' : 'searchNearby'} failed (${res.status}):`,
         errorBody,
       )
       return []
@@ -217,7 +240,7 @@ export async function searchNearbyRestaurants(
     const data = (await res.json()) as { places?: GooglePlace[] }
     let restaurants = (data.places ?? []).map(mapToRestaurant)
 
-    // Client-side openNow filter (since Nearby Search New doesn't support it natively in the body)
+    // Client-side openNow filter
     if (openNow) {
       const openPlaces = (data.places ?? []).filter(
         (p) => p.currentOpeningHours?.openNow === true,
@@ -227,7 +250,7 @@ export async function searchNearbyRestaurants(
 
     return restaurants
   } catch (err) {
-    console.error('[places] searchNearby network error:', err)
+    console.error('[places] search network error:', err)
     return []
   }
 }
@@ -290,22 +313,10 @@ export async function cacheRestaurantToSupabase(
   try {
     const { error } = await supabase
       .from('restaurants')
-      .upsert(
-        {
-          google_place_id: restaurant.google_place_id,
-          name: restaurant.name,
-          cuisine: restaurant.cuisine,
-          lat: restaurant.lat,
-          lng: restaurant.lng,
-          price_range: restaurant.price_range,
-          rating: restaurant.rating,
-          photos: restaurant.photos,
-        },
-        {
-          onConflict: 'google_place_id',
-          ignoreDuplicates: false,
-        },
-      )
+      .upsert(restaurant as any, {
+        onConflict: 'google_place_id',
+        ignoreDuplicates: false,
+      })
 
     if (error) {
       console.error('[places] cacheRestaurantToSupabase error:', error.message)
@@ -313,4 +324,65 @@ export async function cacheRestaurantToSupabase(
   } catch (err) {
     console.error('[places] cacheRestaurantToSupabase network error:', err)
   }
+}
+
+// ─── 5. searchAllCuisineRestaurants ──────────
+
+const ALL_CUISINE_KEYWORDS = [
+  'Malaysian',
+  'Chinese',
+  'Japanese',
+  'Korean',
+  'Western',
+  'Indian',
+  'Thai',
+]
+
+/**
+ * Fetch restaurants across ALL cuisine categories in parallel.
+ * Each cuisine gets its own Text Search call (maxResults per cuisine).
+ * Results are deduplicated by google_place_id and shuffled for diversity.
+ */
+export async function searchAllCuisineRestaurants(
+  params: Omit<NearbySearchParams, 'cuisineKeyword'>,
+): Promise<Restaurant[]> {
+  const perCuisine = 5 // results per cuisine category
+
+  // Fire one request per cuisine + one generic nearby request
+  const promises = ALL_CUISINE_KEYWORDS.map((cuisine) =>
+    searchNearbyRestaurants({
+      ...params,
+      cuisineKeyword: cuisine,
+      maxResults: perCuisine,
+    }),
+  )
+  // Also include a generic nearby search for broader coverage
+  promises.push(
+    searchNearbyRestaurants({ ...params, maxResults: 10 }),
+  )
+
+  const settled = await Promise.allSettled(promises)
+
+  // Combine all successful results, deduplicating by google_place_id
+  const seen = new Set<string>()
+  const all: Restaurant[] = []
+
+  for (const result of settled) {
+    if (result.status === 'fulfilled') {
+      for (const r of result.value) {
+        if (!seen.has(r.google_place_id)) {
+          seen.add(r.google_place_id)
+          all.push(r)
+        }
+      }
+    }
+  }
+
+  // Shuffle for visual diversity (Fisher-Yates)
+  for (let i = all.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[all[i], all[j]] = [all[j], all[i]]
+  }
+
+  return all
 }

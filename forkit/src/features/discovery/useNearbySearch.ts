@@ -3,6 +3,7 @@ import { useLocation } from '@/hooks/useLocation'
 import { useDebounce } from '@/hooks/useDebounce'
 import {
   searchNearbyRestaurants,
+  searchAllCuisineRestaurants,
   cacheRestaurantToSupabase,
 } from '@/lib/places'
 import type { Restaurant } from '@/types'
@@ -55,35 +56,32 @@ export function useNearbySearch(filters: FilterState): NearbySearchResult {
     setError(null)
 
     try {
-      const results = await searchNearbyRestaurants({
-        lat,
-        lng,
-        radiusMeters: debouncedFilters.distanceKm * 1000,
-        cuisineKeyword: debouncedFilters.cuisine,
-        priceLevel:
-          debouncedFilters.priceRange && debouncedFilters.priceRange.length === 1
-            ? (debouncedFilters.priceRange[0] as 1 | 2 | 3 | 4)
-            : undefined,
-        openNow: debouncedFilters.openNow,
-      })
+      const isAllCategory = !debouncedFilters.cuisine
+
+      const results = isAllCategory
+        ? await searchAllCuisineRestaurants({
+            lat,
+            lng,
+            radiusMeters: debouncedFilters.distanceKm * 1000,
+            priceLevels: debouncedFilters.priceRange,
+            openNow: debouncedFilters.openNow,
+          })
+        : await searchNearbyRestaurants({
+            lat,
+            lng,
+            radiusMeters: debouncedFilters.distanceKm * 1000,
+            cuisineKeyword: debouncedFilters.cuisine,
+            priceLevels: debouncedFilters.priceRange,
+            openNow: debouncedFilters.openNow,
+          })
 
       // Stale response guard
       if (fetchId !== fetchIdRef.current) return
 
-      // Filter by priceRange locally if multiple values were selected
-      let filtered = results
-      if (
-        debouncedFilters.priceRange &&
-        debouncedFilters.priceRange.length > 1
-      ) {
-        const allowed = new Set(debouncedFilters.priceRange)
-        filtered = results.filter((r) => allowed.has(r.price_range))
-      }
-
-      setRestaurants(filtered)
+      setRestaurants(results)
 
       // Fire-and-forget: cache every result into Supabase
-      filtered.forEach((r) => {
+      results.forEach((r) => {
         cacheRestaurantToSupabase(r).catch(() => {
           /* silently swallow — caching is best-effort */
         })
@@ -96,7 +94,7 @@ export function useNearbySearch(filters: FilterState): NearbySearchResult {
       setError(message)
       setRestaurants([])
     } finally {
-      if (fetchIdRef.current === fetchIdRef.current) {
+      if (fetchId === fetchIdRef.current) {
         setLoading(false)
       }
     }

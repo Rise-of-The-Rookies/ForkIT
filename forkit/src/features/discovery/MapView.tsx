@@ -160,7 +160,7 @@ export default function MapView({ restaurants }: MapViewProps) {
               </div>
               <button
                 className="map-view__info-btn"
-                onClick={() => navigate(`/restaurant/${selected.id}`)}
+                onClick={() => navigate(`/restaurant/${selected.google_place_id}`)}
               >
                 View Details
               </button>
