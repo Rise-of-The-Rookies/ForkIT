@@ -40,14 +40,6 @@ const PRICE_LEVELS = [
 
 const DIETARY_OPTIONS = ['Halal', 'Vegetarian', 'Vegan'] as const
 
-// Default filter state (used for badge counting)
-const DEFAULTS: FilterState = {
-  cuisine: undefined,
-  priceRange: undefined,
-  distanceKm: 5,
-  openNow: false,
-}
-
 export default function FilterBar({ filters, onChange }: FilterBarProps) {
   const user = useUserStore((s) => s.user)
   const [expanded, setExpanded] = useState(false)

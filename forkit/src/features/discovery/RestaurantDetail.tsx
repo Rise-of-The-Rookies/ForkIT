@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { supabase } from '@/lib/supabase'
+import type { Database } from '@/types'
 import { useAuthStore } from '@/features/auth/authStore'
 import BottomSheet from '@/components/ui/BottomSheet'
 
@@ -43,7 +44,7 @@ export default function ReviewSheet({
       restaurant_id: restaurantId,
       rating,
       body: body.trim() || null,
-    })
+    } as Database['public']['Tables']['reviews']['Insert'])
 
     setSubmitting(false)
 
