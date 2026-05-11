@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { getPhotoUrl } from '@/lib/places'
@@ -25,6 +26,7 @@ export default function RestaurantCard({
   trending = false,
 }: RestaurantCardProps) {
   const navigate = useNavigate()
+  const [imageError, setImageError] = useState(false)
 
   // Pick the first photo, fallback to a gradient placeholder
   const photoSrc =
@@ -33,6 +35,10 @@ export default function RestaurantCard({
         ? restaurant.photos[0]
         : getPhotoUrl(restaurant.photos[0], 800)
       : null
+
+  const handleImageError = () => {
+    setImageError(true)
+  }
 
   const handleClick = () => {
     if (onClick) return onClick()
@@ -64,13 +70,14 @@ export default function RestaurantCard({
       aria-label={`View ${restaurant.name}`}
     >
       {/* ── Background image ── */}
-      {photoSrc ? (
+      {photoSrc && !imageError ? (
         <img
           src={photoSrc}
           alt={restaurant.name}
           className="restaurant-card__image"
           loading="lazy"
           draggable={false}
+          onError={handleImageError}
         />
       ) : (
         <div className="restaurant-card__placeholder" />

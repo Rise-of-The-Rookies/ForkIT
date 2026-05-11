@@ -100,6 +100,11 @@ interface GooglePlace {
 
 /** Map a raw Google Place object → our Restaurant type */
 function mapToRestaurant(place: GooglePlace): Restaurant {
+  // Filter and validate photo names before creating URLs
+  const validPhotos = (place.photos ?? [])
+    .filter((p) => p.name && p.name.startsWith('places/'))
+    .map((p) => getPhotoUrl(p.name))
+
   return {
     id: crypto.randomUUID(),
     google_place_id: place.id,
@@ -109,7 +114,7 @@ function mapToRestaurant(place: GooglePlace): Restaurant {
     lng: place.location?.longitude ?? 0,
     price_range: PRICE_LEVEL_REVERSE[place.priceLevel ?? ''] ?? 2,
     rating: place.rating ?? 0,
-    photos: (place.photos ?? []).map((p) => getPhotoUrl(p.name)),
+    photos: validPhotos,
     // Cuisine classification defaults
     cuisine_primary: null,
     cuisine_secondary: null,
@@ -296,8 +301,15 @@ export async function getPlaceDetails(
  * Build the photo media URL for a given photo resource name.
  * @param photoName  e.g. "places/ChIJ.../photos/abc123"
  * @param maxWidth   max width in px (default 800)
+ * @returns Photo URL or empty string if invalid
  */
 export function getPhotoUrl(photoName: string, maxWidth = 800): string {
+  // Validate photo name format
+  if (!photoName || !photoName.startsWith('places/')) {
+    console.warn('[places] Invalid photo name format:', photoName)
+    return ''
+  }
+
   return `https://places.googleapis.com/v1/${photoName}/media?maxWidthPx=${maxWidth}&key=${API_KEY}`
 }
 
