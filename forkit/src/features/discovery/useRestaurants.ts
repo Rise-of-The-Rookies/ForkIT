@@ -94,7 +94,7 @@ export function useRestaurants(
       }
 
       if (!cancelled && data) {
-        setSavedPlaceIds(new Set(data.map((row) => row.restaurant_id)))
+        setSavedPlaceIds(new Set((data as any[]).map((row) => row.restaurant_id)))
       }
     }
 
@@ -150,7 +150,7 @@ export function useRestaurants(
         })
       } else {
         // ── Add ──
-        const { error } = await supabase.from('saved_places').upsert(
+        const { error } = await (supabase.from('saved_places').upsert as any)(
           {
             user_id: userId,
             restaurant_id: restaurantId,

@@ -51,7 +51,7 @@ const DIETARY_OPTIONS = [
 
 /* ── Animation variants ──────────────────────── */
 
-const pageVariants = {
+const pageVariants: any = {
   initial: { x: '100%', opacity: 0 },
   animate: {
     x: 0,
@@ -65,13 +65,13 @@ const pageVariants = {
   },
 }
 
-const staggerContainer = {
+const staggerContainer: any = {
   animate: {
     transition: { staggerChildren: 0.03 },
   },
 }
 
-const chipVariant = {
+const chipVariant: any = {
   initial: { opacity: 0, scale: 0.85 },
   animate: {
     opacity: 1,
@@ -188,7 +188,7 @@ export default function FoodDnaPage() {
             user_id: userId,
             cuisine_tags: cuisineTags,
             dietary_tags: dietaryTags,
-          },
+          } as any,
           { onConflict: 'user_id' },
         )
         .select()

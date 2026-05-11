@@ -132,7 +132,7 @@ export default function ProfileSetupPage() {
             display_name: displayName.trim(),
             avatar_url: avatarUrl,
             bio: bio.trim() || null,
-          },
+          } as any,
           { onConflict: 'id' },
         )
         .select()
@@ -163,7 +163,7 @@ export default function ProfileSetupPage() {
 
   /* ── Animation variants ──────────────────── */
 
-  const pageVariants = {
+  const pageVariants: any = {
     initial: { x: '100%', opacity: 0 },
     animate: {
       x: 0,

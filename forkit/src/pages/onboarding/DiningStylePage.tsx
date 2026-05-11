@@ -59,7 +59,7 @@ const NOTIF_OPTIONS: NotifPref[] = [
 
 /* ── Animation variants ──────────────────────── */
 
-const pageVariants = {
+const pageVariants: any = {
   initial: { x: '100%', opacity: 0 },
   animate: {
     x: 0,
@@ -107,9 +107,9 @@ export default function DiningStylePage() {
 
     try {
       // 1. Update user profile (budget + distance)
-      const { data: profileData, error: profileError } = await supabase
+      const { data: profileData, error: profileError } = await (supabase
         .from('user_profiles')
-        .update({
+        .update as any)({
           budget_pref: budget,
           distance_pref: distance,
         })
@@ -126,7 +126,7 @@ export default function DiningStylePage() {
           {
             user_id: userId,
             notification_prefs: notifs,
-          },
+          } as any,
           { onConflict: 'user_id' },
         )
         .select()
@@ -136,10 +136,10 @@ export default function DiningStylePage() {
 
       // Sync to Zustand
       if (profileData) {
-        setUser({ ...(user ?? profileData), ...profileData })
+        setUser({ ...(user ?? profileData), ...(profileData as any) })
       }
       if (prefData) {
-        setPreferences({ ...(preferences ?? prefData), ...prefData })
+        setPreferences({ ...(preferences ?? prefData), ...(prefData as any) })
       }
 
       navigate('/onboarding/personality')

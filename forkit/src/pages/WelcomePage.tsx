@@ -57,7 +57,7 @@ export default function WelcomePage() {
 
   /* ── Framer Motion helpers ────────────────── */
 
-  const containerVariants = {
+  const containerVariants: any = {
     hidden: { opacity: 0, y: 32 },
     visible: {
       opacity: 1,
@@ -66,7 +66,7 @@ export default function WelcomePage() {
     },
   }
 
-  const formVariants = {
+  const formVariants: any = {
     hidden: { opacity: 0, y: 12 },
     visible: {
       opacity: 1,

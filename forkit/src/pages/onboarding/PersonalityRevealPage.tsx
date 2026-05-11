@@ -206,7 +206,7 @@ function fireConfetti() {
 
 /* ── Animation variants ──────────────────────── */
 
-const pageVariants = {
+const pageVariants: any = {
   initial: { x: '100%', opacity: 0 },
   animate: {
     x: 0,
@@ -271,9 +271,9 @@ export default function PersonalityRevealPage() {
     setError(null)
 
     try {
-      const { data, error: updateError } = await supabase
+      const { data, error: updateError } = await (supabase
         .from('user_profiles')
-        .update({ personality_type: personality.key })
+        .update as any)({ personality_type: personality.key })
         .eq('id', userId)
         .select()
         .single()
@@ -281,7 +281,7 @@ export default function PersonalityRevealPage() {
       if (updateError) throw updateError
 
       if (data) {
-        setUser({ ...(user ?? data), ...data })
+        setUser({ ...(user ?? data), ...(data as any) })
       }
 
       navigate('/discover')

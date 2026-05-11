@@ -65,7 +65,7 @@ export default function RestaurantDetailPage() {
       const { data, error } = await supabase
         .from('restaurants')
         .select('*')
-        .eq('google_place_id', id)
+        .eq('google_place_id', id as any)
         .maybeSingle()
 
       if (error || !data) {
@@ -79,7 +79,7 @@ export default function RestaurantDetailPage() {
 
       // 2. Enrich from Google Places
       try {
-        const gDetail = await getPlaceDetails(data.google_place_id)
+        const gDetail = await getPlaceDetails((data as any).google_place_id)
         if (!cancelled && gDetail) {
           // Update photos from the richer detail if available
           if (gDetail.photos.length > 0) {
@@ -96,7 +96,7 @@ export default function RestaurantDetailPage() {
       try {
         const API_KEY = import.meta.env.VITE_GOOGLE_KEY as string
         const res = await fetch(
-          `https://places.googleapis.com/v1/places/${data.google_place_id}`,
+          `https://places.googleapis.com/v1/places/${(data as any).google_place_id}`,
           {
             headers: {
               'X-Goog-Api-Key': API_KEY,
@@ -198,7 +198,7 @@ export default function RestaurantDetailPage() {
         .eq('restaurant_id', restaurantDbId)
       setIsSaved(false)
     } else {
-      await supabase.from('saved_places').upsert({
+      await (supabase.from('saved_places').upsert as any)({
         user_id: userId,
         restaurant_id: restaurantDbId,
         geofence_active: false,

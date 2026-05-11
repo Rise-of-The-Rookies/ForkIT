@@ -97,9 +97,9 @@ export default function ProfileHeader({
       avatar_url: editAvatarUrl || null,
     }
 
-    const { error } = await supabase
+    const { error } = await (supabase
       .from('user_profiles')
-      .update(updates)
+      .update as any)(updates)
       .eq('id', user.id)
 
     setSaving(false)
