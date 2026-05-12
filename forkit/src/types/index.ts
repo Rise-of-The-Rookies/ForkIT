@@ -56,6 +56,22 @@ export type Dish = {
   created_at: string
 }
 
+// ─── Trending Scores ─────────────────────────
+
+export type TrendingScore = {
+  id: string
+  restaurant_id: string
+  score_daily: number
+  score_weekly: number
+  rank_local: number | null
+  rank_city: number | null
+  rank_national: number | null
+  score_delta_pct: number
+  top_signals: Record<string, unknown>
+  region: string
+  computed_at: string
+}
+
 // ─── Social / Posts ──────────────────────────
 
 export type Post = {
@@ -149,6 +165,11 @@ export type Database = {
         Row: Dish
         Insert: Partial<Dish> & Pick<Dish, 'restaurant_id' | 'name'>
         Update: Partial<Dish>
+      }
+      trending_scores: {
+        Row: TrendingScore
+        Insert: Partial<TrendingScore> & Pick<TrendingScore, 'restaurant_id'>
+        Update: Partial<TrendingScore>
       }
     }
     Views: {
