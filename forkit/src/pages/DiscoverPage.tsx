@@ -8,6 +8,7 @@ import type { FilterState } from '@/features/discovery/useNearbySearch'
 import FilterBar from '@/features/discovery/FilterBar'
 import RestaurantCard from '@/features/discovery/RestaurantCard'
 import MapView from '@/features/discovery/MapView'
+import { useTrendingIds } from '@/features/trending/useTrendingIds'
 
 /* ──────────────────────────────────────────────
    DiscoverPage — main discovery feed + map
@@ -53,6 +54,7 @@ export default function DiscoverPage() {
   // ── Data hooks ──
   const { restaurants, loading, error, refetch } = useNearbySearch(filters)
   const { sorted, savedPlaceIds, toggleSave } = useRestaurants(restaurants)
+  const trendingIds = useTrendingIds()
 
   // ── Reset display count when data changes ──
   useEffect(() => {
@@ -216,7 +218,7 @@ export default function DiscoverPage() {
                     index={i}
                     isSaved={savedPlaceIds.has(r.id)}
                     onSave={() => toggleSave(r.id)}
-                    trending={r.rating >= 4.5}
+                    trending={trendingIds.has(r.id)}
                   />
                 ))}
 
