@@ -190,6 +190,8 @@ export async function searchNearbyRestaurants(
 
   if (useTextSearch) {
     // ── Text Search path ──
+    // includedType is singular — 'restaurant' is the broadest valid type;
+    // the textQuery itself handles cuisine specificity
     endpoint = `${BASE_URL}:searchText`
     body = {
       textQuery: `${cuisineKeyword} restaurant`,
@@ -206,7 +208,10 @@ export async function searchNearbyRestaurants(
     // ── Nearby Search path (no keyword) ──
     endpoint = `${BASE_URL}:searchNearby`
     body = {
-      includedTypes: ['restaurant'],
+      // v4: multiple types to capture all Malaysian food venues
+      // (mamaks, kopitiams, hawker stalls, bakeries, cafés, bars)
+      // "food" is NOT a valid type in the Places API (New) — use specifics
+      includedTypes: ['restaurant', 'cafe', 'bakery', 'bar', 'meal_takeaway', 'meal_delivery'],
       locationRestriction: {
         circle: {
           center: { latitude: lat, longitude: lng },
@@ -348,32 +353,58 @@ const ALL_CUISINE_KEYWORDS = [
   'Western',
   'Indian',
   'Thai',
+  'Vietnamese',
+  'Mamak',
+  'Indonesian',
+  'Filipino',
+  'Middle Eastern',
+  'Fast food',
+]
+
+// Type groups for parallel nearby searches — split to bypass the
+// 20-result-per-call limit and get broader coverage of nearby venues
+const NEARBY_TYPE_GROUPS: string[][] = [
+  ['restaurant'],
+  ['cafe', 'bakery', 'coffee_shop'],
+  ['fast_food_restaurant'],
+  ['bar', 'meal_takeaway', 'meal_delivery'],
 ]
 
 /**
  * Fetch restaurants across ALL cuisine categories in parallel.
  * Each cuisine gets its own Text Search call (maxResults per cuisine).
+ * Additionally fires one Nearby Search per type group for broad coverage.
  * Results are deduplicated by google_place_id and shuffled for diversity.
  */
 export async function searchAllCuisineRestaurants(
   params: Omit<NearbySearchParams, 'cuisineKeyword'>,
 ): Promise<Restaurant[]> {
-  const perCuisine = 5 // results per cuisine category
+  const perCuisine = 10 // results per cuisine category
 
-  // Fire one request per cuisine + one generic nearby request
-  const promises = ALL_CUISINE_KEYWORDS.map((cuisine) =>
+  // ── Cuisine-specific text searches ──
+  const cuisinePromises = ALL_CUISINE_KEYWORDS.map((cuisine) =>
     searchNearbyRestaurants({
       ...params,
       cuisineKeyword: cuisine,
       maxResults: perCuisine,
     }),
   )
-  // Also include a generic nearby search for broader coverage
-  promises.push(
-    searchNearbyRestaurants({ ...params, maxResults: 10 }),
+
+  // ── Type-group nearby searches (no keyword, split by venue type) ──
+  // Each group gets its own API call → up to 20 results per group
+  const nearbyPromises = NEARBY_TYPE_GROUPS.map((types) =>
+    searchNearbyByTypes({
+      lat: params.lat,
+      lng: params.lng,
+      radiusMeters: params.radiusMeters ?? 5000,
+      includedTypes: types,
+      priceLevels: params.priceLevels,
+      openNow: params.openNow,
+      maxResults: 20,
+    }),
   )
 
-  const settled = await Promise.allSettled(promises)
+  const settled = await Promise.allSettled([...cuisinePromises, ...nearbyPromises])
 
   // Combine all successful results, deduplicating by google_place_id
   const seen = new Set<string>()
@@ -397,4 +428,72 @@ export async function searchAllCuisineRestaurants(
   }
 
   return all
+}
+
+// ─── 6. searchNearbyByTypes (internal helper) ──
+
+interface NearbyByTypesParams {
+  lat: number
+  lng: number
+  radiusMeters: number
+  includedTypes: string[]
+  priceLevels?: number[]
+  openNow?: boolean
+  maxResults?: number
+}
+
+/**
+ * Low-level Nearby Search with explicit includedTypes.
+ * Used by searchAllCuisineRestaurants to split type groups.
+ */
+async function searchNearbyByTypes(
+  params: NearbyByTypesParams,
+): Promise<Restaurant[]> {
+  const body: Record<string, unknown> = {
+    includedTypes: params.includedTypes,
+    locationRestriction: {
+      circle: {
+        center: { latitude: params.lat, longitude: params.lng },
+        radius: params.radiusMeters,
+      },
+    },
+    maxResultCount: params.maxResults ?? 20,
+  }
+
+  if (params.priceLevels && params.priceLevels.length > 0) {
+    body.priceLevels = params.priceLevels.map((p) => PRICE_LEVEL_MAP[p]).filter(Boolean)
+  }
+
+  try {
+    const res = await fetch(`${BASE_URL}:searchNearby`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Goog-Api-Key': API_KEY,
+        'X-Goog-FieldMask': NEARBY_FIELD_MASK,
+      },
+      body: JSON.stringify(body),
+    })
+
+    if (!res.ok) {
+      const errorBody = await res.text()
+      console.error(`[places] searchNearbyByTypes failed (${res.status}):`, errorBody)
+      return []
+    }
+
+    const data = (await res.json()) as { places?: GooglePlace[] }
+    let restaurants = (data.places ?? []).map(mapToRestaurant)
+
+    if (params.openNow) {
+      const openPlaces = (data.places ?? []).filter(
+        (p) => p.currentOpeningHours?.openNow === true,
+      )
+      restaurants = openPlaces.map(mapToRestaurant)
+    }
+
+    return restaurants
+  } catch (err) {
+    console.error('[places] searchNearbyByTypes network error:', err)
+    return []
+  }
 }

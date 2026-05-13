@@ -1,14 +1,30 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useUserStore } from '@/store/userStore'
 import { useAuthStore } from '@/features/auth/authStore'
+import { useLocation } from '@/hooks/useLocation'
 import { supabase } from '@/lib/supabase'
 import type { Restaurant } from '@/types'
 
 /* ──────────────────────────────────────────────
-   useRestaurants — personalised sort + saved places
+   useRestaurants — distance sort + personalised scoring + saved places
    Takes the raw list from useNearbySearch and
-   applies rule-based scoring using user prefs.
+   sorts by distance (closest first), with
+   rule-based preference scoring as a tiebreaker.
    ────────────────────────────────────────────── */
+
+// ─── Haversine distance (metres) ─────────────
+
+const EARTH_R = 6_371_000
+
+function haversineM(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const toRad = (d: number) => (d * Math.PI) / 180
+  const dLat = toRad(lat2 - lat1)
+  const dLng = toRad(lng2 - lng1)
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
+  return 2 * EARTH_R * Math.asin(Math.sqrt(a))
+}
 
 // ─── Budget → price-range mapping ────────────
 // Converts the user's budget_pref string to matching numeric price levels.
@@ -68,6 +84,7 @@ export function useRestaurants(
   const preferences = useUserStore((s) => s.preferences)
   const user = useUserStore((s) => s.user)
   const session = useAuthStore((s) => s.session)
+  const { lat: userLat, lng: userLng } = useLocation()
 
   const userId = session?.user?.id ?? null
 
@@ -104,21 +121,30 @@ export function useRestaurants(
     }
   }, [userId])
 
-  // ── Personalised sort ──
+  // ── Sort: distance first (closest), then preference score as tiebreaker ──
   const sorted = useMemo(() => {
     const cuisineTags = preferences?.cuisine_tags ?? []
     const budgetPref = user?.budget_pref ?? null
 
-    // Create scored copies and sort descending
     const scored = restaurants.map((r) => ({
       restaurant: r,
+      distance:
+        userLat !== null && userLng !== null
+          ? haversineM(userLat, userLng, r.lat, r.lng)
+          : 0,
       score: scoreRestaurant(r, cuisineTags, budgetPref),
     }))
 
-    scored.sort((a, b) => b.score - a.score)
+    scored.sort((a, b) => {
+      // Primary: closest first
+      const distDiff = a.distance - b.distance
+      if (Math.abs(distDiff) > 50) return distDiff // >50m apart → sort by distance
+      // Tiebreaker: higher preference score first
+      return b.score - a.score
+    })
 
     return scored.map((s) => s.restaurant)
-  }, [restaurants, preferences, user])
+  }, [restaurants, preferences, user, userLat, userLng])
 
   // ── Toggle save/unsave ──
   const toggleSave = useCallback(

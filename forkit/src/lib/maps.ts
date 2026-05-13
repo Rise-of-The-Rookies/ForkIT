@@ -8,29 +8,62 @@ const API_KEY = import.meta.env.VITE_GOOGLE_KEY as string
 // ─── Dark map style (matches ForkIt dark theme) ──
 
 export const DARK_MAP_STYLE: google.maps.MapTypeStyle[] = [
+  // ── Base geometry & label defaults ──
   { elementType: 'geometry', stylers: [{ color: '#1a1917' }] },
   { elementType: 'labels.text.stroke', stylers: [{ color: '#1a1917' }] },
   { elementType: 'labels.text.fill', stylers: [{ color: '#6e6e6e' }] },
+
+  // ── City / neighbourhood names ──
   {
     featureType: 'administrative.locality',
     elementType: 'labels.text.fill',
     stylers: [{ color: '#9e9e9e' }],
   },
   {
+    featureType: 'administrative.neighborhood',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#7a7a7a' }],
+  },
+
+  // ── Road labels (keep for orientation) ──
+  {
+    featureType: 'road',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#5a5a5a' }],
+  },
+  {
+    featureType: 'road.highway',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#7a7a7a' }],
+  },
+
+  // ── Hide all non-business POIs (parks, landmarks, etc.) ──
+  {
     featureType: 'poi',
-    elementType: 'labels.text.fill',
-    stylers: [{ color: '#6e6e6e' }],
+    stylers: [{ visibility: 'off' }],
+  },
+  // ── Re-enable restaurant / food business labels only ──
+  {
+    featureType: 'poi.business',
+    stylers: [{ visibility: 'on' }],
   },
   {
-    featureType: 'poi.park',
-    elementType: 'geometry',
-    stylers: [{ color: '#1e2a1e' }],
+    featureType: 'poi.business',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#b0a890' }],
   },
   {
-    featureType: 'poi.park',
-    elementType: 'labels.text.fill',
-    stylers: [{ color: '#4a7c4a' }],
+    featureType: 'poi.business',
+    elementType: 'labels.text.stroke',
+    stylers: [{ color: '#1a1917' }],
   },
+  {
+    featureType: 'poi.business',
+    elementType: 'labels.icon',
+    stylers: [{ saturation: -60 }, { lightness: -20 }],
+  },
+
+  // ── Road geometry (no labels) ──
   {
     featureType: 'road',
     elementType: 'geometry',
@@ -51,30 +84,19 @@ export const DARK_MAP_STYLE: google.maps.MapTypeStyle[] = [
     elementType: 'geometry.stroke',
     stylers: [{ color: '#1a1917' }],
   },
-  {
-    featureType: 'road.highway',
-    elementType: 'labels.text.fill',
-    stylers: [{ color: '#8a8a8a' }],
-  },
+
+  // ── Transit geometry (no labels) ──
   {
     featureType: 'transit',
     elementType: 'geometry',
     stylers: [{ color: '#252420' }],
   },
-  {
-    featureType: 'transit.station',
-    elementType: 'labels.text.fill',
-    stylers: [{ color: '#6e6e6e' }],
-  },
+
+  // ── Water geometry (no labels) ──
   {
     featureType: 'water',
     elementType: 'geometry',
     stylers: [{ color: '#0e1a2a' }],
-  },
-  {
-    featureType: 'water',
-    elementType: 'labels.text.fill',
-    stylers: [{ color: '#3a5a7c' }],
   },
 ]
 

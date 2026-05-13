@@ -12,6 +12,7 @@ import type { Restaurant } from '@/types'
 
 /* ──────────────────────────────────────────────
    MapView — Google Maps with custom markers
+   // v4: uses live Google Places results from parent via props
    ────────────────────────────────────────────── */
 
 interface MapViewProps {
@@ -31,19 +32,20 @@ export default function MapView({ restaurants }: MapViewProps) {
   const mapInstance = useRef<google.maps.Map | null>(null)
   const markersRef = useRef<(google.maps.marker.AdvancedMarkerElement | google.maps.Marker)[]>([])
 
-  const [ready, setReady] = useState(false)
+  const [apiReady, setApiReady] = useState(false)
+  const [mapReady, setMapReady] = useState(false)
   const [selected, setSelected] = useState<SelectedRestaurant | null>(null)
 
   // ── Load Google Maps API ──
   useEffect(() => {
     loadGoogleMaps()
-      .then(() => setReady(true))
+      .then(() => setApiReady(true))
       .catch((err) => console.error('[MapView] Failed to load maps:', err))
   }, [])
 
   // ── Init map when API is ready + we have a location ──
   useEffect(() => {
-    if (!ready || !mapRef.current || lat === null || lng === null) return
+    if (!apiReady || !mapRef.current || lat === null || lng === null) return
 
     const map = initMap(mapRef.current, { lat, lng }, 14)
     mapInstance.current = map
@@ -51,15 +53,19 @@ export default function MapView({ restaurants }: MapViewProps) {
     // User blue dot
     addUserMarker(map, { lat, lng })
 
+    // Signal that the map is ready for markers
+    setMapReady(true)
+
     return () => {
       mapInstance.current = null
+      setMapReady(false)
     }
-  }, [ready, lat, lng])
+  }, [apiReady, lat, lng])
 
-  // ── Place restaurant markers ──
+  // ── Place restaurant markers (runs when map is ready OR restaurants change) ──
   useEffect(() => {
     const map = mapInstance.current
-    if (!map || !ready) return
+    if (!map || !mapReady) return
 
     // Clear old markers
     markersRef.current.forEach((m) => {
@@ -73,7 +79,7 @@ export default function MapView({ restaurants }: MapViewProps) {
       })
       markersRef.current.push(marker)
     })
-  }, [restaurants, ready])
+  }, [restaurants, mapReady])
 
   // ── Recenter ──
   const recenter = useCallback(() => {
@@ -109,7 +115,7 @@ export default function MapView({ restaurants }: MapViewProps) {
       <div ref={mapRef} className="map-view__canvas" />
 
       {/* Loading overlay */}
-      {!ready && (
+      {!mapReady && (
         <div className="map-view__loading">
           <div className="map-view__spinner" />
           <span>Loading map…</span>

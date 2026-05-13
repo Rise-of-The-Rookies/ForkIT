@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 
 /* ──────────────────────────────────────────────
    useLocation — browser geolocation hook
+   // v4: fresh GPS on every mount, no cross-session caching
    Falls back to Kuala Lumpur city centre on error.
    ────────────────────────────────────────────── */
 
@@ -65,7 +66,7 @@ export function useLocation(): LocationState {
       {
         enableHighAccuracy: true,
         timeout: 10_000,
-        maximumAge: 5 * 60_000, // cache for 5 min
+        maximumAge: 0, // v4: always request fresh position
       },
     )
 
