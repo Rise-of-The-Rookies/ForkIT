@@ -346,6 +346,7 @@ export async function cacheRestaurantToSupabase(
 // ─── 5. searchAllCuisineRestaurants ──────────
 
 const ALL_CUISINE_KEYWORDS = [
+  // Major cuisines
   'Malaysian',
   'Chinese',
   'Japanese',
@@ -354,11 +355,36 @@ const ALL_CUISINE_KEYWORDS = [
   'Indian',
   'Thai',
   'Vietnamese',
-  'Mamak',
   'Indonesian',
   'Filipino',
   'Middle Eastern',
+  // Local venue types
+  'Mamak',
   'Fast food',
+  'Restaurant',
+  'Restoran',
+  // Specific food categories
+  'Hotpot steamboat',
+  'BBQ grill',
+  'Dim sum',
+  'Seafood',
+  'Noodle',
+  'Dessert cafe',
+  'Bubble tea',
+  'Bakery pastry',
+  // Fast food & chains
+  'Burger',
+  'Fried chicken',
+  // Dish-based searches
+  'Fried rice',
+  'Food court',
+  'Poke bowl',
+  'Ice cream',
+  'Pizza',
+  'Sushi',
+  'Sandwich wrap',
+  // Dietary
+  'Vegetarian',
 ]
 
 // Type groups for parallel nearby searches — split to bypass the
@@ -496,4 +522,50 @@ async function searchNearbyByTypes(
     console.error('[places] searchNearbyByTypes network error:', err)
     return []
   }
+}
+
+// ─── 7. searchViewportRestaurants ────────────
+
+/**
+ * Broad viewport-based search — fires one Nearby Search per type group
+ * in parallel. Used when the user pans/zooms the map to discover
+ * additional restaurants in the visible area.
+ * Returns deduplicated results across all type groups.
+ */
+export async function searchViewportRestaurants(params: {
+  lat: number
+  lng: number
+  radiusMeters: number
+  priceLevels?: number[]
+  openNow?: boolean
+}): Promise<Restaurant[]> {
+  const promises = NEARBY_TYPE_GROUPS.map((types) =>
+    searchNearbyByTypes({
+      lat: params.lat,
+      lng: params.lng,
+      radiusMeters: params.radiusMeters,
+      includedTypes: types,
+      priceLevels: params.priceLevels,
+      openNow: params.openNow,
+      maxResults: 20,
+    }),
+  )
+
+  const settled = await Promise.allSettled(promises)
+
+  const seen = new Set<string>()
+  const all: Restaurant[] = []
+
+  for (const result of settled) {
+    if (result.status === 'fulfilled') {
+      for (const r of result.value) {
+        if (!seen.has(r.google_place_id)) {
+          seen.add(r.google_place_id)
+          all.push(r)
+        }
+      }
+    }
+  }
+
+  return all
 }

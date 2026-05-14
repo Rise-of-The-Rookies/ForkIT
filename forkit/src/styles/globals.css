@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "../features/discovery/discovery.css";
 @import "../features/profile/profile.css";
+@import "../features/search/search.css";
 
 /* ── Design tokens ───────────────────────────────────── */
 

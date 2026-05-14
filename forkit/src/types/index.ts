@@ -72,6 +72,17 @@ export type TrendingScore = {
   computed_at: string
 }
 
+// ─── Search History ──────────────────────────
+
+export type SearchHistory = {
+  id: string
+  user_id: string
+  query: string
+  result_count: number
+  tapped_result: string | null
+  searched_at: string
+}
+
 // ─── Social / Posts ──────────────────────────
 
 export type Post = {
@@ -170,6 +181,11 @@ export type Database = {
         Row: TrendingScore
         Insert: Partial<TrendingScore> & Pick<TrendingScore, 'restaurant_id'>
         Update: Partial<TrendingScore>
+      }
+      search_history: {
+        Row: SearchHistory
+        Insert: Partial<SearchHistory> & Pick<SearchHistory, 'user_id' | 'query'>
+        Update: Partial<SearchHistory>
       }
     }
     Views: {

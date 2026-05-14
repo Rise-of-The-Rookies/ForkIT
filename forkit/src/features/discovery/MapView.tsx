@@ -18,6 +18,8 @@ import type { Restaurant } from '@/types'
 interface MapViewProps {
   restaurants: Restaurant[]
   savedPlaceIds: Set<string>
+  /** Called when the user pans/zooms — parent should fetch more restaurants for this center */
+  onViewportDiscover?: (lat: number, lng: number) => void
 }
 
 interface SelectedRestaurant extends Restaurant {
@@ -25,12 +27,12 @@ interface SelectedRestaurant extends Restaurant {
   _pixelY?: number
 }
 
-export default function MapView({ restaurants }: MapViewProps) {
+export default function MapView({ restaurants, onViewportDiscover }: MapViewProps) {
   const navigate = useNavigate()
   const { lat, lng } = useLocation()
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstance = useRef<google.maps.Map | null>(null)
-  const markersRef = useRef<(google.maps.marker.AdvancedMarkerElement | google.maps.Marker)[]>([])
+  const markersRef = useRef<Map<string, google.maps.marker.AdvancedMarkerElement | google.maps.Marker>>(new Map())
 
   const [apiReady, setApiReady] = useState(false)
   const [mapReady, setMapReady] = useState(false)
@@ -53,31 +55,54 @@ export default function MapView({ restaurants }: MapViewProps) {
     // User blue dot
     addUserMarker(map, { lat, lng })
 
+    // ── Viewport discovery: fetch more restaurants when user pans/zooms ──
+    let idleTimer: ReturnType<typeof setTimeout> | null = null
+    const idleListener = map.addListener('idle', () => {
+      if (!onViewportDiscover) return
+      // Debounce: wait 1.5s after last idle before fetching
+      if (idleTimer) clearTimeout(idleTimer)
+      idleTimer = setTimeout(() => {
+        const center = map.getCenter()
+        if (center) {
+          onViewportDiscover(center.lat(), center.lng())
+        }
+      }, 1500)
+    })
+
     // Signal that the map is ready for markers
     setMapReady(true)
 
     return () => {
+      if (idleTimer) clearTimeout(idleTimer)
+      google.maps.event.removeListener(idleListener)
       mapInstance.current = null
       setMapReady(false)
     }
-  }, [apiReady, lat, lng])
+  }, [apiReady, lat, lng, onViewportDiscover])
 
-  // ── Place restaurant markers (runs when map is ready OR restaurants change) ──
+  // ── Place restaurant markers (merge new, keep existing) ──
   useEffect(() => {
     const map = mapInstance.current
     if (!map || !mapReady) return
 
-    // Clear old markers
-    markersRef.current.forEach((m) => {
-      if ('setMap' in m) (m as google.maps.Marker).setMap(null)
-    })
-    markersRef.current = []
+    // Track which IDs are in the current restaurants list
+    const currentIds = new Set(restaurants.map((r) => r.google_place_id))
 
+    // Remove markers for restaurants no longer in the list
+    for (const [id, marker] of markersRef.current) {
+      if (!currentIds.has(id)) {
+        if ('setMap' in marker) (marker as google.maps.Marker).setMap(null)
+        markersRef.current.delete(id)
+      }
+    }
+
+    // Add markers for new restaurants (skip already-placed ones)
     restaurants.forEach((r) => {
+      if (markersRef.current.has(r.google_place_id)) return // already on map
       const marker = addRestaurantMarker(map, r, () => {
         setSelected(r)
       })
-      markersRef.current.push(marker)
+      markersRef.current.set(r.google_place_id, marker)
     })
   }, [restaurants, mapReady])
 

@@ -5,10 +5,13 @@ import { useUserStore } from '@/store/userStore'
 import { useNearbySearch } from '@/features/discovery/useNearbySearch'
 import { useRestaurants } from '@/features/discovery/useRestaurants'
 import type { FilterState } from '@/features/discovery/useNearbySearch'
+import { searchViewportRestaurants } from '@/lib/places'
 import FilterBar from '@/features/discovery/FilterBar'
 import RestaurantCard from '@/features/discovery/RestaurantCard'
 import MapView from '@/features/discovery/MapView'
 import { useTrendingIds } from '@/features/trending/useTrendingIds'
+import type { Restaurant } from '@/types'
+import SearchBar from '@/components/SearchBar'
 
 /* ──────────────────────────────────────────────
    DiscoverPage — main discovery feed + map
@@ -53,8 +56,52 @@ export default function DiscoverPage() {
 
   // ── Data hooks ──
   const { restaurants, loading, error, refetch } = useNearbySearch(filters)
-  const { sorted, savedPlaceIds, toggleSave } = useRestaurants(restaurants)
   const trendingIds = useTrendingIds()
+
+  // ── Viewport discovery: extra restaurants found when panning the map ──
+  const [viewportExtras, setViewportExtras] = useState<Restaurant[]>([])
+  const viewportSeenRef = useRef<Set<string>>(new Set())
+
+  // Merge original results + viewport discoveries (dedup by google_place_id)
+  const allRestaurants = useMemo(() => {
+    const seen = new Set(restaurants.map((r) => r.google_place_id))
+    const extras = viewportExtras.filter((r) => !seen.has(r.google_place_id))
+    return [...restaurants, ...extras]
+  }, [restaurants, viewportExtras])
+
+  const { sorted, savedPlaceIds, toggleSave } = useRestaurants(allRestaurants)
+
+  // Clear viewport extras when filters change (results will differ)
+  useEffect(() => {
+    setViewportExtras([])
+    viewportSeenRef.current.clear()
+  }, [filters])
+
+  const handleViewportDiscover = useCallback(
+    async (lat: number, lng: number) => {
+      // Grid key to avoid re-fetching the same viewport area
+      const key = `${lat.toFixed(3)}_${lng.toFixed(3)}`
+      if (viewportSeenRef.current.has(key)) return
+      viewportSeenRef.current.add(key)
+
+      try {
+        // Fire all type-group searches in parallel for broad coverage
+        const results = await searchViewportRestaurants({
+          lat,
+          lng,
+          radiusMeters: filters.distanceKm * 1000,
+          priceLevels: filters.priceRange,
+          openNow: filters.openNow,
+        })
+        if (results.length > 0) {
+          setViewportExtras((prev) => [...prev, ...results])
+        }
+      } catch {
+        // Silently swallow — viewport discovery is best-effort
+      }
+    },
+    [filters],
+  )
 
   // ── Reset display count when data changes ──
   useEffect(() => {
@@ -124,6 +171,11 @@ export default function DiscoverPage() {
           </div>
         </div>
       </header>
+
+      {/* ═══════ Search bar ═══════ */}
+      <div style={{ padding: '0 20px 4px' }}>
+        <SearchBar />
+      </div>
 
       {/* ═══════ Sticky filter bar ═══════ */}
       <div className="discover-page__filters">
@@ -247,7 +299,7 @@ export default function DiscoverPage() {
               transition={{ duration: 0.2 }}
               className="discover-page__map-wrapper"
             >
-              <MapView restaurants={sorted} savedPlaceIds={savedPlaceIds} />
+              <MapView restaurants={sorted} savedPlaceIds={savedPlaceIds} onViewportDiscover={handleViewportDiscover} />
             </motion.div>
           )}
         </AnimatePresence>

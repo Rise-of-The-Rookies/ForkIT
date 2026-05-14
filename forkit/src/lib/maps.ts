@@ -164,10 +164,25 @@ export function addRestaurantMarker(
   // Build custom marker HTML
   const markerEl = document.createElement('div')
   markerEl.className = 'map-marker'
+  markerEl.style.cursor = 'pointer'
+  markerEl.style.pointerEvents = 'auto'
   markerEl.innerHTML = `
     <span class="map-marker__name">${escapeHtml(restaurant.name.length > 18 ? restaurant.name.slice(0, 18) + '…' : restaurant.name)}</span>
     <span class="map-marker__rating">⭐ ${restaurant.rating.toFixed(1)}</span>
   `
+
+  // Attach click directly to the HTML element — this ALWAYS works,
+  // even without a mapId (which AdvancedMarkerElement's event system needs)
+  markerEl.addEventListener('click', (e) => {
+    e.stopPropagation()
+    onClick()
+  })
+  // Also handle touch for mobile
+  markerEl.addEventListener('touchend', (e) => {
+    e.stopPropagation()
+    e.preventDefault()
+    onClick()
+  })
 
   // Try AdvancedMarkerElement first, fall back to regular Marker
   try {
@@ -178,7 +193,6 @@ export function addRestaurantMarker(
         content: markerEl,
         title: restaurant.name,
       })
-      marker.addListener('click', onClick)
       return marker
     }
   } catch {

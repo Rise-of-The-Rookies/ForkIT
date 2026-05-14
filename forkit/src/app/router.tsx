@@ -18,6 +18,7 @@ import ForkyPage from '@/pages/ForkyPage'
 import TrendingPage from '@/pages/TrendingPage'
 import ProfilePage from '@/pages/ProfilePage'
 import SettingsPage from '@/pages/SettingsPage'
+import SearchResultsPage from '@/pages/SearchResultsPage'
 
 /**
  * Application router.
@@ -63,6 +64,7 @@ export const router = createBrowserRouter([
           { path: '/trending', element: <TrendingPage /> },
           { path: '/profile', element: <ProfilePage /> },
           { path: '/settings', element: <SettingsPage /> },
+          { path: '/search', element: <SearchResultsPage /> },
         ],
       },
     ],
