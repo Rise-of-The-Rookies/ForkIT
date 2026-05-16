@@ -7,6 +7,7 @@
 
 import { supabase } from '@/lib/supabase'
 import type { Restaurant, Dish, SearchHistory } from '@/types'
+import { getCuisineForKeyword, suggestKeywords } from '@/lib/foodKeywords'
 
 // ─── Bilingual keyword dictionary ────────────
 
@@ -26,6 +27,25 @@ const BILINGUAL_MAP: Record<string, string> = {
   murah: 'cheap',
   sedap: 'delicious',
   best: 'best',
+  goreng: 'fried',
+  bakar: 'grilled',
+  udang: 'prawn',
+  sotong: 'squid',
+  ketam: 'crab',
+  sayur: 'vegetable',
+  telur: 'egg',
+  ais: 'ice',
+  panas: 'hot',
+  sejuk: 'cold',
+  kedai: 'shop',
+  restoran: 'restaurant',
+  warung: 'stall',
+  gerai: 'stall',
+  lembu: 'beef',
+  kambing: 'mutton',
+  kerang: 'cockles',
+  minuman: 'drink',
+  makanan: 'food',
 }
 
 /**
@@ -193,10 +213,16 @@ export async function searchRestaurants(
     }
 
     // Factor 3: Cuisine match (+20)
+    const detectedCuisine = getCuisineForKeyword(translated)?.toLowerCase()
     if (
       row.cuisine_primary?.toLowerCase().includes(queryLower) ||
       row.cuisine_secondary?.toLowerCase().includes(queryLower) ||
-      row.cuisine.toLowerCase().includes(queryLower)
+      row.cuisine.toLowerCase().includes(queryLower) ||
+      (detectedCuisine && (
+        row.cuisine_primary?.toLowerCase() === detectedCuisine ||
+        row.cuisine_secondary?.toLowerCase() === detectedCuisine ||
+        row.cuisine.toLowerCase().includes(detectedCuisine)
+      ))
     ) {
       score += 20
       if (matchType === 'fuzzy') matchType = 'cuisine'
@@ -337,8 +363,17 @@ export async function getSuggestionsForQuery(
       ? ((dishRes.value.data as Dish[]) ?? [])
       : []
 
-  // Deduplicate cuisine suggestions
+  // Deduplicate cuisine suggestions and add local keyword suggestions
   const cuisineSet = new Set<string>()
+  
+  // Add suggestions from local food keyword taxonomy first
+  const kwSuggestions = suggestKeywords(query.trim(), 5)
+  for (const kw of kwSuggestions) {
+    if (kw.type !== 'dish' && kw.type !== 'ingredient') {
+      cuisineSet.add(kw.keyword)
+    }
+  }
+
   if (cuisineRes.status === 'fulfilled' && cuisineRes.value.data) {
     for (const row of cuisineRes.value.data as Array<{
       cuisine_primary: string | null
@@ -350,7 +385,7 @@ export async function getSuggestionsForQuery(
   return {
     restaurants: restaurants.slice(0, 3),
     dishes: dishes.slice(0, 3),
-    cuisines: [...cuisineSet].slice(0, 3),
+    cuisines: [...cuisineSet].slice(0, 5),
     areas: [], // TODO: populate from restaurant addresses / area tags
   }
 }
@@ -367,7 +402,7 @@ export async function saveSearchHistory(
   tappedResult?: string,
 ): Promise<void> {
   // Insert
-  const { error: insertErr } = await supabase.from('search_history').insert({
+  const { error: insertErr } = await (supabase as any).from('search_history').insert({
     user_id: userId,
     query,
     result_count: resultCount,
@@ -380,7 +415,7 @@ export async function saveSearchHistory(
   }
 
   // Prune: keep only the 10 most recent entries for this user
-  const { data: rows, error: fetchErr } = await supabase
+  const { data: rows, error: fetchErr } = await (supabase as any)
     .from('search_history')
     .select('id')
     .eq('user_id', userId)
@@ -389,8 +424,8 @@ export async function saveSearchHistory(
   if (fetchErr || !rows) return
 
   if (rows.length > 10) {
-    const idsToDelete = rows.slice(10).map((r) => r.id)
-    await supabase.from('search_history').delete().in('id', idsToDelete)
+    const idsToDelete = rows.slice(10).map((r: any) => r.id)
+    await (supabase as any).from('search_history').delete().in('id', idsToDelete)
   }
 }
 
@@ -402,7 +437,7 @@ export async function saveSearchHistory(
 export async function getSearchHistory(
   userId: string,
 ): Promise<SearchHistory[]> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('search_history')
     .select('*')
     .eq('user_id', userId)
@@ -423,7 +458,7 @@ export async function getSearchHistory(
  * Delete a single search history entry by ID.
  */
 export async function deleteSearchHistoryItem(id: string): Promise<void> {
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from('search_history')
     .delete()
     .eq('id', id)

@@ -3,6 +3,20 @@
    Maps 1-to-1 with the Supabase DB schema.
    ────────────────────────────────────────────── */
 
+// ─── Food Keyword Taxonomy ───────────────────
+
+export type FoodCategory =
+  | 'malay' | 'chinese' | 'japanese' | 'korean' | 'thai'
+  | 'vietnamese' | 'indian' | 'middle_eastern' | 'southeast_asian'
+  | 'east_asian' | 'western' | 'european' | 'latin_american'
+  | 'african' | 'south_asian' | 'seafood' | 'vegetarian_vegan'
+  | 'dietary' | 'format' | 'dessert' | 'drinks' | 'venue'
+  | 'occasion' | 'price'
+
+export type KeywordType =
+  | 'dish' | 'venue' | 'diet' | 'occasion' | 'price'
+  | 'method' | 'format' | 'ingredient' | 'drink' | 'dessert'
+
 // ─── User ────────────────────────────────────
 
 export type UserProfile = {
@@ -43,6 +57,10 @@ export type Restaurant = {
   halal_likely: boolean
   classification_source: 'unclassified' | 'keyword' | 'gemini' | 'user_signal'
   classification_confidence: number
+
+  // ── Venue type & searchable tags (added 2026-05-16) ──
+  venue_type: string | null
+  searchable_tags: string[]
 }
 
 // ─── Dish ────────────────────────────────────
@@ -83,6 +101,15 @@ export type SearchHistory = {
   searched_at: string
 }
 
+// ─── Friends ─────────────────────────────────
+
+export type Friend = {
+  user_id: string
+  friend_id: string
+  status: 'pending' | 'accepted'
+  created_at: string
+}
+
 // ─── Social / Posts ──────────────────────────
 
 export type Post = {
@@ -96,6 +123,23 @@ export type Post = {
   created_at: string
 }
 
+export type PostInteraction = {
+  id: string
+  post_id: string
+  user_id: string
+  type: 'like' | 'save' | 'reshare'
+  created_at: string
+}
+
+export type Comment = {
+  id: string
+  post_id: string
+  user_id: string
+  body: string
+  parent_id: string | null
+  created_at: string
+}
+
 // ─── Group Rooms ─────────────────────────────
 
 export type GroupRoom = {
@@ -104,6 +148,45 @@ export type GroupRoom = {
   code: string
   status: 'waiting' | 'swiping' | 'revealed' | 'done'
   filters: Record<string, unknown>
+  created_at: string
+}
+
+export type RoomMember = {
+  room_id: string
+  user_id: string
+  joined_at: string
+  finished_swiping: boolean
+}
+
+export type Swipe = {
+  id: string
+  room_id: string
+  user_id: string
+  restaurant_id: string
+  direction: 'yes' | 'no'
+  swiped_at: string
+}
+
+// ─── Notification Log ────────────────────────
+
+export type NotificationLog = {
+  id: string
+  user_id: string
+  type: string
+  restaurant_id: string | null
+  sent_at: string
+  opened: boolean
+}
+
+// ─── Taste Signals ───────────────────────────
+
+export type TasteSignal = {
+  id: string
+  user_id: string
+  signal_type: string
+  cuisine_tag: string | null
+  restaurant_id: string | null
+  weight: number
   created_at: string
 }
 
@@ -186,6 +269,41 @@ export type Database = {
         Row: SearchHistory
         Insert: Partial<SearchHistory> & Pick<SearchHistory, 'user_id' | 'query'>
         Update: Partial<SearchHistory>
+      }
+      friends: {
+        Row: Friend
+        Insert: Partial<Friend> & Pick<Friend, 'user_id' | 'friend_id'>
+        Update: Partial<Friend>
+      }
+      room_members: {
+        Row: RoomMember
+        Insert: Partial<RoomMember> & Pick<RoomMember, 'room_id' | 'user_id'>
+        Update: Partial<RoomMember>
+      }
+      swipes: {
+        Row: Swipe
+        Insert: Partial<Swipe> & Pick<Swipe, 'room_id' | 'user_id' | 'restaurant_id' | 'direction'>
+        Update: Partial<Swipe>
+      }
+      post_interactions: {
+        Row: PostInteraction
+        Insert: Partial<PostInteraction> & Pick<PostInteraction, 'post_id' | 'user_id' | 'type'>
+        Update: Partial<PostInteraction>
+      }
+      comments: {
+        Row: Comment
+        Insert: Partial<Comment> & Pick<Comment, 'post_id' | 'user_id' | 'body'>
+        Update: Partial<Comment>
+      }
+      notification_log: {
+        Row: NotificationLog
+        Insert: Partial<NotificationLog> & Pick<NotificationLog, 'user_id' | 'type'>
+        Update: Partial<NotificationLog>
+      }
+      taste_signals: {
+        Row: TasteSignal
+        Insert: Partial<TasteSignal> & Pick<TasteSignal, 'user_id' | 'signal_type'>
+        Update: Partial<TasteSignal>
       }
     }
     Views: {

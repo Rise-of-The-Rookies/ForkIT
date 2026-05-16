@@ -15,14 +15,20 @@ interface FilterBarProps {
 // ─── Static data ─────────────────────────────
 
 const CUISINE_PILLS = [
-  { label: 'All', value: undefined },
-  { label: 'Malaysian', value: 'Malaysian' },
-  { label: 'Chinese', value: 'Chinese' },
-  { label: 'Japanese', value: 'Japanese' },
-  { label: 'Korean', value: 'Korean' },
-  { label: 'Western', value: 'Western' },
-  { label: 'Indian', value: 'Indian' },
-  { label: 'Thai', value: 'Thai' },
+  { label: 'All',           value: undefined },
+  { label: 'Malaysian',     value: 'Malaysian' },
+  { label: 'Chinese',       value: 'Chinese' },
+  { label: 'Japanese',      value: 'Japanese' },
+  { label: 'Korean',        value: 'Korean' },
+  { label: 'Western',       value: 'Western' },
+  { label: 'Indian',        value: 'Indian' },
+  { label: 'Thai',          value: 'Thai' },
+  { label: 'Vietnamese',    value: 'Vietnamese' },
+  { label: 'Middle Eastern',value: 'Middle Eastern' },
+  { label: 'Indonesian',    value: 'Indonesian' },
+  { label: 'Seafood',       value: 'Seafood' },
+  { label: 'Dessert',       value: 'Dessert' },
+  { label: 'Cafe',          value: 'Cafe' },
 ] as const
 
 const QUICK_PILLS = [

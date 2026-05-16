@@ -5,6 +5,7 @@
 
 import { supabase } from '@/lib/supabase'
 import type { Restaurant } from '@/types'
+import { GOOGLE_PLACES_KEYWORDS, classifyByName } from '@/lib/foodKeywords'
 
 // ─── Config ──────────────────────────────────
 
@@ -105,7 +106,7 @@ function mapToRestaurant(place: GooglePlace): Restaurant {
     .filter((p) => p.name && p.name.startsWith('places/'))
     .map((p) => getPhotoUrl(p.name))
 
-  return {
+  const restaurant: Restaurant = {
     id: crypto.randomUUID(),
     google_place_id: place.id,
     name: place.displayName?.text ?? 'Unknown',
@@ -122,7 +123,27 @@ function mapToRestaurant(place: GooglePlace): Restaurant {
     halal_likely: false,
     classification_source: 'unclassified',
     classification_confidence: 0,
+    venue_type: null,
+    searchable_tags: [],
   }
+
+  // Auto-classify using keyword database
+  const nameWords = place.displayName?.text?.toLowerCase() ?? ''
+  const matched = classifyByName(nameWords)
+  
+  if (matched) {
+    if (matched.type === 'venue') {
+      restaurant.venue_type = matched.keyword
+    } else if (matched.type === 'occasion' || matched.type === 'price') {
+      restaurant.searchable_tags = [matched.keyword]
+    } else {
+      restaurant.cuisine_primary = matched.cuisineTag ?? matched.category
+    }
+    restaurant.classification_source = 'keyword'
+    restaurant.classification_confidence = 0.7
+  }
+
+  return restaurant
 }
 
 /** Best-effort cuisine label from Google type tags */
@@ -328,6 +349,18 @@ export async function cacheRestaurantToSupabase(
   restaurant: Restaurant,
 ): Promise<void> {
   try {
+    // Check if the restaurant already exists to reuse its UUID.
+    // This prevents foreign key constraint errors on search_history.
+    const { data: existing } = await supabase
+      .from('restaurants')
+      .select('id')
+      .eq('google_place_id', restaurant.google_place_id)
+      .maybeSingle()
+
+    if (existing) {
+      restaurant.id = existing.id
+    }
+
     const { error } = await supabase
       .from('restaurants')
       .upsert(restaurant as any, {
@@ -345,47 +378,7 @@ export async function cacheRestaurantToSupabase(
 
 // ─── 5. searchAllCuisineRestaurants ──────────
 
-const ALL_CUISINE_KEYWORDS = [
-  // Major cuisines
-  'Malaysian',
-  'Chinese',
-  'Japanese',
-  'Korean',
-  'Western',
-  'Indian',
-  'Thai',
-  'Vietnamese',
-  'Indonesian',
-  'Filipino',
-  'Middle Eastern',
-  // Local venue types
-  'Mamak',
-  'Fast food',
-  'Restaurant',
-  'Restoran',
-  // Specific food categories
-  'Hotpot steamboat',
-  'BBQ grill',
-  'Dim sum',
-  'Seafood',
-  'Noodle',
-  'Dessert cafe',
-  'Bubble tea',
-  'Bakery pastry',
-  // Fast food & chains
-  'Burger',
-  'Fried chicken',
-  // Dish-based searches
-  'Fried rice',
-  'Food court',
-  'Poke bowl',
-  'Ice cream',
-  'Pizza',
-  'Sushi',
-  'Sandwich wrap',
-  // Dietary
-  'Vegetarian',
-]
+const ALL_CUISINE_KEYWORDS = GOOGLE_PLACES_KEYWORDS
 
 // Type groups for parallel nearby searches — split to bypass the
 // 20-result-per-call limit and get broader coverage of nearby venues
